@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spiral Clock</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background: #111;
+      color: #ccc;
+      font-family: system-ui, sans-serif;
+    }
+
+    #plot {
+      position: absolute;
+      inset: 0;
+    }
+
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      z-index: 1;
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #hud div:first-child {
+      font-size: 28px;
+      color: #fff;
+    }
+
+    #views {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      z-index: 1;
+      display: flex;
+      gap: 6px;
+    }
+
+    #views button {
+      background: #222;
+      color: #ddd;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 6px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #views button:hover {
+      background: #333;
+      border-color: #4aa8ff;
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-Cg9xI7DJ.js"></script>
+</head>
+
+<body>
+  <div id="hud">
+    <div id="time"></div>
+    <div id="span"></div>
+  </div>
+  <div id="views">
+    <button data-view="xy">xy</button>
+    <button data-view="xz">xz</button>
+    <button data-view="yz">yz</button>
+  </div>
+  <div id="plot"></div>
+</body>
+
+</html>
