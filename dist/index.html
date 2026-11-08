@@ -69,7 +69,25 @@
       right: 16px;
       z-index: 4;
       display: flex;
+    }
+
+    #controls-list {
+      display: flex;
       gap: 6px;
+    }
+
+    #controls-menu-toggle {
+      display: none;
+    }
+
+    #controls-menu-toggle svg {
+      display: block;
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
     }
 
     #views button {
@@ -89,7 +107,36 @@
 
     #settings-button .gear-icon {
       display: inline-block;
+      width: 14px;
+      height: 14px;
       transform: scale(1.5);
+    }
+
+    #settings-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #center-button svg {
+      display: block;
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    #center-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #center-button[hidden] {
+      display: none;
     }
 
     .settings-overlay {
@@ -98,6 +145,9 @@
       z-index: 3;
       display: grid;
       place-items: center;
+      box-sizing: border-box;
+      padding: 16px;
+      overflow-y: auto;
       background: rgba(0, 0, 0, 0.45);
     }
 
@@ -107,7 +157,11 @@
 
     #settings-panel {
       width: min(360px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      max-height: calc(100dvh - 32px);
       padding: 20px;
+      box-sizing: border-box;
+      overflow-y: auto;
       border: 1px solid #444;
       border-radius: 8px;
       background: #181818;
@@ -304,6 +358,52 @@
       }
     }
 
+    @media (max-width: 640px) {
+      #views {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+      }
+
+      #controls-menu-toggle {
+        order: 0;
+      }
+
+      #center-button:not([hidden]) {
+        position: absolute;
+        top: 0;
+        right: 54px;
+      }
+
+      #controls-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #controls-list {
+        order: 1;
+        display: none;
+        flex-direction: column;
+        align-items: stretch;
+        min-width: 56px;
+        gap: 6px;
+        padding: 6px;
+        border: 1px solid #444;
+        border-radius: 6px;
+        background: rgba(17, 17, 17, 0.96);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      }
+
+      #views.is-open #controls-list {
+        display: flex;
+      }
+
+      #controls-list button {
+        text-align: center;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       #gesture-overlay {
         transition-duration: 0s;
@@ -320,7 +420,7 @@
       }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-Dgx8STSX.js"></script>
+  <script type="module" crossorigin src="./assets/index-C6yOlNKX.js"></script>
 </head>
 
 <body>
@@ -329,11 +429,25 @@
     <div id="span"></div>
   </div>
   <div id="views">
-    <button data-view="xy">xy</button>
-    <button data-view="xz">xz</button>
-    <button data-view="yz">yz</button>
-    <button id="gesture-help" type="button" aria-label="Show gesture controls" aria-controls="gesture-overlay" aria-expanded="false">?</button>
-    <button id="settings-button" type="button" aria-label="Settings" aria-controls="settings-overlay" aria-expanded="false"><span class="gear-icon" aria-hidden="true">⚙</span></button>
+    <button id="controls-menu-toggle" type="button" aria-label="Open controls menu" aria-controls="controls-list" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+    <div id="controls-list">
+      <button data-view="xy">xy</button>
+      <button data-view="xz">xz</button>
+      <button data-view="yz">yz</button>
+      <button id="gesture-help" type="button" aria-label="Show gesture controls" aria-controls="gesture-overlay" aria-expanded="false">?</button>
+      <button id="settings-button" type="button" aria-label="Settings" aria-controls="settings-overlay" aria-expanded="false"><img class="gear-icon" src="data:image/svg+xml,%3c!--%20Lucide%20Settings%20icon%20https://github.com/lucide-icons/lucide/blob/main/icons/settings.svg%20ISC%20License%20Copyright%20(c)%202026%20Lucide%20Icons%20and%20Contributors%20Permission%20to%20use,%20copy,%20modify,%20and/or%20distribute%20this%20software%20for%20any%20purpose%20with%20or%20without%20fee%20is%20hereby%20granted,%20provided%20that%20the%20above%20copyright%20notice%20and%20this%20permission%20notice%20appear%20in%20all%20copies.%20THE%20SOFTWARE%20IS%20PROVIDED%20'AS%20IS'%20AND%20THE%20AUTHOR%20DISCLAIMS%20ALL%20WARRANTIES%20WITH%20REGARD%20TO%20THIS%20SOFTWARE%20INCLUDING%20ALL%20IMPLIED%20WARRANTIES%20OF%20MERCHANTABILITY%20AND%20FITNESS.%20IN%20NO%20EVENT%20SHALL%20THE%20AUTHOR%20BE%20LIABLE%20FOR%20ANY%20SPECIAL,%20DIRECT,%20INDIRECT,%20OR%20CONSEQUENTIAL%20DAMAGES%20OR%20ANY%20DAMAGES%20WHATSOEVER%20RESULTING%20FROM%20LOSS%20OF%20USE,%20DATA%20OR%20PROFITS,%20WHETHER%20IN%20AN%20ACTION%20OF%20CONTRACT,%20NEGLIGENCE%20OR%20OTHER%20TORTIOUS%20ACTION,%20ARISING%20OUT%20OF%20OR%20IN%20CONNECTION%20WITH%20THE%20USE%20OR%20PERFORMANCE%20OF%20THIS%20SOFTWARE.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%23ddd'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3e%3cpath%20d='M9.671%204.136a2.34%202.34%200%200%201%204.659%200%202.34%202.34%200%200%200%203.319%201.915%202.34%202.34%200%200%201%202.33%204.033%202.34%202.34%200%200%200%200%203.831%202.34%202.34%200%200%201-2.33%204.033%202.34%202.34%200%200%200-3.319%201.915%202.34%202.34%200%200%201-4.659%200%202.34%202.34%200%200%200-3.32-1.915%202.34%202.34%200%200%201-2.33-4.033%202.34%202.34%200%200%200%200-3.831A2.34%202.34%200%200%201%206.35%206.051a2.34%202.34%200%200%200%203.319-1.915'%20/%3e%3ccircle%20cx='12'%20cy='12'%20r='3'%20/%3e%3c/svg%3e" alt="" aria-hidden="true"></button>
+    </div>
+    <button id="center-button" type="button" aria-label="Center on current time" title="Center on current time" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="7" />
+        <circle cx="12" cy="12" r="2" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </svg>
+    </button>
   </div>
   <div id="gesture-overlay" role="dialog" aria-modal="true" aria-labelledby="gesture-hint-title">
     <aside id="gesture-hint" aria-label="Gesture controls">

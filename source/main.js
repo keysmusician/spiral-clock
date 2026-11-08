@@ -25,6 +25,7 @@ const nowSeconds = () => Date.now() / 1000;
 const el = document.getElementById('plot');
 const timeEl = document.getElementById('time');
 const spanEl = document.getElementById('span');
+const centerButton = document.getElementById('center-button');
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -58,8 +59,55 @@ const setView = (name) => {
 };
 const controls = new OrbitControls(cam, renderer.domElement);
 controls.enableZoom = false;
-controls.addEventListener('start', () => { activeView = null; });
+let isInteracting = false;
+let isTracking = true;
+controls.addEventListener('start', () => {
+  activeView = null;
+  isInteracting = true;
+});
+controls.addEventListener('end', () => { isInteracting = false; });
 controls.enableDamping = true;
+
+const activeTouchPointers = new Map();
+let lastPinchDistance = 0;
+const stopCameraTracking = () => {
+  isTracking = false;
+  centerButton.hidden = false;
+};
+renderer.domElement.addEventListener('pointerdown', (event) => {
+  if (event.pointerType === 'touch') {
+    activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (activeTouchPointers.size === 2) {
+      controls.enablePan = false;
+      const [first, second] = activeTouchPointers.values();
+      lastPinchDistance = Math.hypot(first.x - second.x, first.y - second.y);
+    }
+  } else if (event.button === 2) {
+    stopCameraTracking();
+  }
+});
+renderer.domElement.addEventListener('pointermove', (event) => {
+  if (event.pointerType !== 'touch' || !activeTouchPointers.has(event.pointerId)) return;
+  activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (activeTouchPointers.size !== 2) return;
+
+  const [first, second] = activeTouchPointers.values();
+  const distance = Math.hypot(first.x - second.x, first.y - second.y);
+  if (lastPinchDistance > 0 && distance > 0 && Math.abs(distance - lastPinchDistance) > 0.1) {
+    halfSpan = Math.min(MAX_HALF, Math.max(MIN_HALF, halfSpan * (lastPinchDistance / distance)));
+    build(nowSeconds(), true);
+  }
+  lastPinchDistance = distance;
+});
+const finishTouchPointer = (event) => {
+  activeTouchPointers.delete(event.pointerId);
+  if (activeTouchPointers.size < 2) {
+    lastPinchDistance = 0;
+    controls.enablePan = true;
+  }
+};
+addEventListener('pointerup', finishTouchPointer);
+addEventListener('pointercancel', finishTouchPointer);
 
 // Curve: screen-space fat line; alpha is computed in the shader from the world-space x (time offset from now).
 // The curve is drawn twice (past / future halves, split per-fragment at x = 0) so each half
@@ -258,6 +306,36 @@ renderer.domElement.addEventListener('wheel', (e) => {
 document.querySelectorAll('#views button[data-view]').forEach((b) =>
   b.addEventListener('click', () => setView(b.dataset.view)));
 
+const viewsEl = document.getElementById('views');
+const controlsMenuToggle = document.getElementById('controls-menu-toggle');
+const closeControlsMenu = () => {
+  viewsEl.classList.remove('is-open');
+  controlsMenuToggle.setAttribute('aria-expanded', 'false');
+  controlsMenuToggle.setAttribute('aria-label', 'Open controls menu');
+};
+
+controlsMenuToggle.addEventListener('click', () => {
+  const isOpen = viewsEl.classList.toggle('is-open');
+  controlsMenuToggle.setAttribute('aria-expanded', String(isOpen));
+  controlsMenuToggle.setAttribute('aria-label', isOpen ? 'Close controls menu' : 'Open controls menu');
+});
+
+document.getElementById('controls-list').addEventListener('click', (event) => {
+  if (event.target.closest('button')) closeControlsMenu();
+});
+
+document.addEventListener('click', (event) => {
+  if (!viewsEl.contains(event.target)) closeControlsMenu();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeControlsMenu();
+});
+
+matchMedia('(max-width: 640px)').addEventListener('change', (event) => {
+  if (!event.matches) closeControlsMenu();
+});
+
 function resize() {
   const w = el.clientWidth, h = el.clientHeight;
   renderer.setSize(w, h);
@@ -272,6 +350,9 @@ build(nowSeconds(), true);
 setView('default');
 
 function frame() {
+  const frameTime = performance.now();
+  const deltaSeconds = Math.min((frameTime - previousFrameTime) / 1000, 0.1);
+  previousFrameTime = frameTime;
   const now = nowSeconds();
   if (Math.abs(now - anchor) > 0.2 * halfSpan) build(now);
   const curveOffset = -((now - anchor) / halfSpan) * X_EXTENT;
@@ -280,6 +361,18 @@ function frame() {
   const s = signal(now);
   glow.position.set(0, toY(s.y), toZ(s.z));
   core.position.copy(glow.position);
+  if (isTracking && !isInteracting) {
+    const trackingInterval = 2 * halfSpan < 60 ? 1 : 60;
+    const trackingCenter = Math.floor(now / trackingInterval) * trackingInterval + trackingInterval / 2;
+    const trackingSignal = signal(trackingCenter);
+    cameraFollowTarget.set(0, toY(trackingSignal.y), toZ(trackingSignal.z));
+    const followAmount = 1 - Math.exp(-deltaSeconds / 0.8);
+    const followDelta = cameraFollowDelta.subVectors(cameraFollowTarget, controls.target);
+    if (followDelta.length() < 0.015) centerButton.hidden = true;
+    followDelta.multiplyScalar(followAmount);
+    controls.target.add(followDelta);
+    cam.position.add(followDelta);
+  }
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * TAU * 0.8);
   glow.scale.setScalar(0.07 + 0.04 * pulse);
   glow.material.opacity = 0.7 + 0.3 * pulse;
@@ -309,7 +402,15 @@ function frame() {
   renderer.render(scene, cam);
   requestAnimationFrame(frame);
 }
+const cameraFollowDelta = new THREE.Vector3();
+const cameraFollowTarget = new THREE.Vector3();
+let previousFrameTime = performance.now();
 frame();
+
+centerButton.addEventListener('click', () => {
+  closeControlsMenu();
+  isTracking = true;
+});
 
 const gestureOverlayEl = document.getElementById('gesture-overlay');
 const gestureHintEl = document.getElementById('gesture-hint');
