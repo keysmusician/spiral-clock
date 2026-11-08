@@ -55,6 +55,14 @@
       color: #fff;
     }
 
+    #time {
+      color: #91cbff;
+      font-family: "SF Mono", ui-monospace, monospace;
+      font-size: 28px;
+      font-weight: 300;
+      letter-spacing: 0.12em;
+    }
+
     #views {
       position: absolute;
       top: 12px;
@@ -77,6 +85,106 @@
     #views button:hover {
       background: #333;
       border-color: #4aa8ff;
+    }
+
+    #settings-button .gear-icon {
+      display: inline-block;
+      transform: scale(1.5);
+    }
+
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.45);
+    }
+
+    .settings-overlay[hidden] {
+      display: none;
+    }
+
+    #settings-panel {
+      width: min(360px, calc(100vw - 32px));
+      padding: 20px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #181818;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      color: #ddd;
+    }
+
+    #settings-title {
+      margin: 0 0 12px;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 12px 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .setting-row:last-child {
+      border-bottom: 0;
+    }
+
+    #time-markers-toggle {
+      appearance: none;
+      -webkit-appearance: none;
+      position: relative;
+      flex: 0 0 auto;
+      width: 42px;
+      height: 24px;
+      margin: 0;
+      border: 1px solid #555;
+      border-radius: 999px;
+      background: #333;
+      cursor: pointer;
+      transition: background 150ms ease, border-color 150ms ease;
+    }
+
+    #time-markers-toggle::before {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ccc;
+      content: "";
+      transition: transform 150ms ease, background 150ms ease;
+    }
+
+    #time-markers-toggle:checked {
+      border-color: #4aa8ff;
+      background: #245c91;
+    }
+
+    #time-markers-toggle:checked::before {
+      transform: translateX(18px);
+      background: #fff;
+    }
+
+    #time-markers-toggle:focus-visible {
+      outline: 2px solid #8fc5ff;
+      outline-offset: 2px;
+    }
+
+    #line-color {
+      width: 48px;
+      height: 32px;
+      padding: 2px;
+      border: 1px solid #555;
+      border-radius: 4px;
+      background: #222;
+      cursor: pointer;
     }
 
     #gesture-overlay {
@@ -117,6 +225,14 @@
       color: #fff;
       font-size: 20px;
       font-weight: 500;
+      text-align: center;
+    }
+
+    .gesture-hint-subtitle {
+      margin: 4px 0 0;
+      color: #aaa;
+      font-size: 13px;
+      text-align: center;
     }
 
     .gesture-hint-controls {
@@ -192,6 +308,11 @@
         transition-duration: 0s;
       }
 
+      #time-markers-toggle,
+      #time-markers-toggle::before {
+        transition-duration: 0s;
+      }
+
       .gesture-hint-timer span {
         animation: none;
       }
@@ -209,10 +330,14 @@
     <button data-view="xz">xz</button>
     <button data-view="yz">yz</button>
     <button id="gesture-help" type="button" aria-label="Show gesture controls" aria-controls="gesture-overlay" aria-expanded="false">?</button>
+    <button id="settings-button" type="button" aria-label="Settings" aria-controls="settings-overlay" aria-expanded="false"><span class="gear-icon" aria-hidden="true">⚙</span></button>
   </div>
   <div id="gesture-overlay" role="dialog" aria-modal="true" aria-labelledby="gesture-hint-title">
     <aside id="gesture-hint" aria-label="Gesture controls">
-      <h1 id="gesture-hint-title" class="gesture-hint-title">Spiral Clock</h1>
+      <div>
+        <h1 id="gesture-hint-title" class="gesture-hint-title">Spiral Clock</h1>
+        <p class="gesture-hint-subtitle">A 3D visualization of time</p>
+      </div>
       <div class="gesture-hint-controls">
         <div class="gesture-hint-item">
           <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -230,6 +355,19 @@
       </div>
       <div class="gesture-hint-timer" aria-hidden="true"><span></span></div>
     </aside>
+  </div>
+  <div id="settings-overlay" class="settings-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <section id="settings-panel">
+      <h2 id="settings-title">Settings</h2>
+      <label class="setting-row" for="time-markers-toggle">
+        <span>Time markers</span>
+        <input id="time-markers-toggle" type="checkbox" checked>
+      </label>
+      <label class="setting-row" for="line-color">
+        <span>Line color</span>
+        <input id="line-color" type="color" value="#2f8cff">
+      </label>
+    </section>
   </div>
   <div id="plot"></div>
   <div id="time-marker-labels" aria-hidden="true"></div>

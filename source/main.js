@@ -338,3 +338,47 @@ gestureHelpButton.addEventListener('click', () => {
   gestureOverlayEl.classList.add('manual-open');
   gestureHelpButton.setAttribute('aria-expanded', 'true');
 });
+
+const settingsButton = document.getElementById('settings-button');
+const settingsOverlayEl = document.getElementById('settings-overlay');
+const settingsPanelEl = document.getElementById('settings-panel');
+const timeMarkersToggle = document.getElementById('time-markers-toggle');
+const lineColorInput = document.getElementById('line-color');
+
+const closeSettings = () => {
+  settingsOverlayEl.hidden = true;
+  settingsButton.setAttribute('aria-expanded', 'false');
+};
+
+settingsButton.addEventListener('click', () => {
+  if (settingsOverlayEl.hidden) {
+    settingsOverlayEl.hidden = false;
+    settingsButton.setAttribute('aria-expanded', 'true');
+  } else {
+    closeSettings();
+  }
+});
+
+document.addEventListener('click', (event) => {
+  if (
+    !settingsOverlayEl.hidden &&
+    !settingsPanelEl.contains(event.target) &&
+    !settingsButton.contains(event.target)
+  ) {
+    closeSettings();
+  }
+});
+
+timeMarkersToggle.addEventListener('change', () => {
+  timeMarkers.visible = timeMarkersToggle.checked;
+  timeMarkerLabelContainer.hidden = !timeMarkersToggle.checked;
+});
+
+lineColorInput.addEventListener('input', () => {
+  const color = new THREE.Color(lineColorInput.value);
+  const pastColor = color.clone().multiplyScalar(0.65);
+  for (const mat of curveMats) {
+    mat.uniforms.uPast.value.set(pastColor.r, pastColor.g, pastColor.b, 0.6);
+    mat.uniforms.uFuture.value.set(color.r, color.g, color.b, 1);
+  }
+});
