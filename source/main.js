@@ -18,7 +18,7 @@ const MIN_SAMPLES = 1501;
 const MAX_SAMPLES = 500001;
 const LINE_WIDTH = 0.5; // px, present side
 const PAST_WIDTH_SCALE = 0.5;
-let halfSpan = 86400 * 1.5; // 3 days total
+let halfSpan = 60; // 2 minutes total
 
 const nowSeconds = () => Date.now() / 1000;
 const el = document.getElementById('plot');
@@ -26,7 +26,7 @@ const timeEl = document.getElementById('time');
 const spanEl = document.getElementById('span');
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 el.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
@@ -120,7 +120,7 @@ let yzScale = 1;
 const toY = (y) => (y - yzCenter[0]) * yzScale;
 const toZ = (z) => (z - yzCenter[1]) * yzScale;
 
-const SAMPLES_PER_CYCLE = 24;
+const SAMPLES_PER_CYCLE = 12;
 const MIN_VISIBLE_PX = 0.75;
 
 function build(now) {
@@ -175,7 +175,7 @@ renderer.domElement.addEventListener('wheel', (e) => {
   build(nowSeconds());
 }, { passive: false });
 
-document.querySelectorAll('#views button').forEach((b) =>
+document.querySelectorAll('#views button[data-view]').forEach((b) =>
   b.addEventListener('click', () => setView(b.dataset.view)));
 
 function resize() {
@@ -193,7 +193,7 @@ setView('yz');
 
 function frame() {
   const now = nowSeconds();
-  if (Math.abs(now - anchor) > 0.01 * halfSpan) build(now);
+  if (Math.abs(now - anchor) > 0.2 * halfSpan) build(now);
   for (const c of curves) c.position.x = -((now - anchor) / halfSpan) * X_EXTENT;
   const s = signal(now);
   glow.position.set(0, toY(s.y), toZ(s.z));
@@ -208,3 +208,42 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
+
+const gestureOverlayEl = document.getElementById('gesture-overlay');
+const gestureHintEl = document.getElementById('gesture-hint');
+const gestureHelpButton = document.getElementById('gesture-help');
+const initialSplashTimeout = setTimeout(() => {
+  gestureOverlayEl.classList.add('timer-dismissed');
+  gestureOverlayEl.classList.add('is-hidden');
+}, 3000);
+
+const closeGestureOverlay = () => {
+  gestureOverlayEl.classList.add('timer-dismissed');
+  gestureOverlayEl.classList.add('is-hidden');
+  gestureOverlayEl.classList.remove('manual-open');
+  gestureHelpButton.setAttribute('aria-expanded', 'false');
+};
+
+document.addEventListener('click', (event) => {
+  if (
+    gestureOverlayEl.classList.contains('manual-open') &&
+    !gestureHintEl.contains(event.target) &&
+    event.target !== gestureHelpButton
+  ) {
+    closeGestureOverlay();
+  }
+});
+
+gestureHelpButton.addEventListener('click', () => {
+  if (gestureOverlayEl.classList.contains('manual-open')) {
+    closeGestureOverlay();
+    return;
+  }
+  if (!gestureOverlayEl.classList.contains('is-hidden')) {
+    clearTimeout(initialSplashTimeout);
+    gestureOverlayEl.classList.add('timer-dismissed');
+  }
+  gestureOverlayEl.classList.remove('is-hidden');
+  gestureOverlayEl.classList.add('manual-open');
+  gestureHelpButton.setAttribute('aria-expanded', 'true');
+});

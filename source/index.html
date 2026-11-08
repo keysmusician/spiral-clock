@@ -38,7 +38,7 @@
       position: absolute;
       top: 12px;
       right: 16px;
-      z-index: 1;
+      z-index: 4;
       display: flex;
       gap: 6px;
     }
@@ -57,6 +57,124 @@
       background: #333;
       border-color: #4aa8ff;
     }
+
+    #gesture-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.35);
+      opacity: 1;
+      transition: opacity 600ms ease, visibility 0s linear;
+    }
+
+    #gesture-overlay.is-hidden {
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 600ms ease, visibility 0s linear 600ms;
+    }
+
+    #gesture-hint {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 22px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: rgba(24, 24, 24, 0.96);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      color: #ddd;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .gesture-hint-title {
+      margin: 0;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    .gesture-hint-controls {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    #gesture-overlay.timer-dismissed .gesture-hint-timer {
+      display: none;
+    }
+
+    .gesture-hint-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gesture-hint-item svg {
+      width: 24px;
+      height: 24px;
+      fill: none;
+      stroke: #8fc5ff;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .gesture-hint-timer {
+      position: absolute;
+      right: 1px;
+      bottom: 1px;
+      left: 1px;
+      height: 2px;
+      overflow: hidden;
+      border-radius: 0 0 7px 7px;
+      background: #333;
+    }
+
+    .gesture-hint-timer span {
+      position: absolute;
+      inset: 0;
+      transform: scaleX(1);
+      transform-origin: left;
+      background: #4aa8ff;
+      animation: gesture-hint-countdown 3s linear forwards;
+    }
+
+    @keyframes gesture-hint-countdown {
+      to {
+        transform: scaleX(0);
+      }
+    }
+
+    @media (max-width: 420px) {
+      #gesture-hint {
+        gap: 12px;
+        padding: 14px 16px;
+        font-size: 12px;
+      }
+
+      .gesture-hint-controls {
+        gap: 14px;
+      }
+
+      .gesture-hint-item {
+        gap: 5px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #gesture-overlay {
+        transition-duration: 0s;
+      }
+
+      .gesture-hint-timer span {
+        animation: none;
+      }
+    }
   </style>
 </head>
 
@@ -69,6 +187,28 @@
     <button data-view="xy">xy</button>
     <button data-view="xz">xz</button>
     <button data-view="yz">yz</button>
+    <button id="gesture-help" type="button" aria-label="Show gesture controls" aria-controls="gesture-overlay" aria-expanded="false">?</button>
+  </div>
+  <div id="gesture-overlay" role="dialog" aria-modal="true" aria-labelledby="gesture-hint-title">
+    <aside id="gesture-hint" aria-label="Gesture controls">
+      <h1 id="gesture-hint-title" class="gesture-hint-title">Spiral Clock</h1>
+      <div class="gesture-hint-controls">
+        <div class="gesture-hint-item">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 5v22M5 16h22M16 5l-3 3m3-3 3 3m-3 19-3-3m3 3 3-3M5 16l3-3m-3 3 3 3m19-3-3-3m3 3-3 3" />
+          </svg>
+          <span>Drag to orbit</span>
+        </div>
+        <div class="gesture-hint-item">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="9" y="3" width="14" height="26" rx="7" />
+            <path d="M16 8v6m0 0-3-3m3 3 3-3M16 24v-6m0 0-3 3m3-3 3 3" />
+          </svg>
+          <span>Scroll to zoom</span>
+        </div>
+      </div>
+      <div class="gesture-hint-timer" aria-hidden="true"><span></span></div>
+    </aside>
   </div>
   <div id="plot"></div>
   <script type="module" src="./main.js"></script>
