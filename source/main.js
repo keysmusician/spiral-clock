@@ -34,8 +34,9 @@ const timeEl = document.getElementById('time');
 const spanEl = document.getElementById('span');
 const centerButton = document.getElementById('center-button');
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+const isTouchDevice = matchMedia('(pointer: coarse)').matches;
+const renderer = new THREE.WebGLRenderer({ antialias: !isTouchDevice });
+renderer.setPixelRatio(Math.min(devicePixelRatio, isTouchDevice ? 1 : 1.5));
 el.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
@@ -371,9 +372,27 @@ resize();
 build(nowSeconds(), true);
 setView('default');
 
-function frame() {
-  const frameTime = performance.now();
-  const deltaSeconds = Math.min((frameTime - previousFrameTime) / 1000, 0.1);
+const TARGET_FRAME_INTERVAL = 1000 / 30;
+let animationFrameId = null;
+let previousFrameTime = 0;
+
+function scheduleFrame() {
+  if (animationFrameId === null && !document.hidden) {
+    animationFrameId = requestAnimationFrame(frame);
+  }
+}
+
+function frame(frameTime) {
+  animationFrameId = null;
+  if (document.hidden) return;
+  if (frameTime - previousFrameTime < TARGET_FRAME_INTERVAL) {
+    scheduleFrame();
+    return;
+  }
+
+  const deltaSeconds = previousFrameTime === 0
+    ? 0
+    : Math.min((frameTime - previousFrameTime) / 1000, 0.1);
   previousFrameTime = frameTime;
   const now = nowSeconds();
   if (Math.abs(now - anchor) > 0.2 * halfSpan) build(now);
@@ -420,12 +439,20 @@ function frame() {
     timeMarker.element.style.top = `${y}px`;
   }
   renderer.render(scene, cam);
-  requestAnimationFrame(frame);
+  scheduleFrame();
 }
 const cameraFollowDelta = new THREE.Vector3();
 const cameraFollowTarget = new THREE.Vector3();
-let previousFrameTime = performance.now();
-frame();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  } else {
+    previousFrameTime = 0;
+    scheduleFrame();
+  }
+});
+scheduleFrame();
 
 centerButton.addEventListener('click', () => {
   closeControlsMenu();
