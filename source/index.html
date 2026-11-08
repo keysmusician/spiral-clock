@@ -20,11 +20,32 @@
       inset: 0;
     }
 
+    #time-marker-labels {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .time-marker-label {
+      position: absolute;
+      padding: 2px 4px;
+      border: 1px solid rgba(143, 197, 255, 0.35);
+      border-radius: 3px;
+      background: rgba(17, 17, 17, 0.8);
+      color: #d7eaff;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      transform: translate(-50%, -130%);
+    }
+
     #hud {
       position: absolute;
       top: 12px;
       left: 16px;
-      z-index: 1;
+      z-index: 2;
       pointer-events: none;
       font-variant-numeric: tabular-nums;
     }
@@ -211,6 +232,7 @@
     </aside>
   </div>
   <div id="plot"></div>
+  <div id="time-marker-labels" aria-hidden="true"></div>
   <script type="module" src="./main.js"></script>
 </body>
 

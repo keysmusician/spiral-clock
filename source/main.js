@@ -88,6 +88,37 @@ pastCurve.renderOrder = 20;
 const curves = [futureCurve, pastCurve];
 for (const c of curves) { c.frustumCulled = false; scene.add(c); }
 
+const timeMarkerMaterial = new THREE.ShaderMaterial({
+  uniforms: { uFadeExtent: { value: X_EXTENT } },
+  vertexShader: `
+    uniform float uFadeExtent;
+    varying float vOpacity;
+    void main() {
+      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+      vOpacity = clamp(1.0 - abs(worldPosition.x) / uFadeExtent, 0.0, 1.0);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = 7.0;
+    }
+  `,
+  fragmentShader: `
+    varying float vOpacity;
+    void main() {
+      float edge = 1.0 - smoothstep(0.34, 0.5, length(gl_PointCoord - vec2(0.5)));
+      gl_FragColor = vec4(0.62, 0.82, 1.0, vOpacity * edge);
+    }
+  `,
+  transparent: true,
+  depthTest: false,
+  depthWrite: false,
+});
+const timeMarkers = new THREE.Points(new THREE.BufferGeometry(), timeMarkerMaterial);
+timeMarkers.renderOrder = 30;
+timeMarkers.frustumCulled = false;
+scene.add(timeMarkers);
+const timeMarkerLabelContainer = document.getElementById('time-marker-labels');
+const timeMarkerLabels = [];
+const timeMarkerProjection = new THREE.Vector3();
+
 // Now-point: bright core plus a pulsing additive glow sprite.
 const glowTex = (() => {
   const c = document.createElement('canvas');
@@ -122,6 +153,48 @@ const toZ = (z) => (z - yzCenter[1]) * yzScale;
 
 const SAMPLES_PER_CYCLE = 12;
 const MIN_VISIBLE_PX = 0.75;
+const TIME_MARKER_INTERVALS = [
+  1, 5, 15, 30,
+  60, 300, 900, 1800,
+  3600, 10800, 21600, 43200,
+  86400,
+];
+
+function formatTimeMarkerLabel(time, interval) {
+  const date = new Date(time * 1000);
+  if (interval < 60) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  }
+  if (interval < 86400) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function buildTimeMarkers(now) {
+  const desiredInterval = (2 * halfSpan) / 8;
+  const interval = TIME_MARKER_INTERVALS.find((step) => step >= desiredInterval)
+    ?? TIME_MARKER_INTERVALS[TIME_MARKER_INTERVALS.length - 1];
+  const start = (Math.floor(now / interval) + 1) * interval;
+  const end = now + halfSpan;
+  const positions = [];
+  timeMarkerLabels.length = 0;
+  timeMarkerLabelContainer.replaceChildren();
+  for (let t = start; t <= end; t += interval) {
+    const p = signal(t);
+    const position = new THREE.Vector3(((t - now) / halfSpan) * X_EXTENT, toY(p.y), toZ(p.z));
+    positions.push(position.x, position.y, position.z);
+    const element = document.createElement('div');
+    element.className = 'time-marker-label';
+    element.textContent = formatTimeMarkerLabel(t, interval);
+    timeMarkerLabelContainer.appendChild(element);
+    timeMarkerLabels.push({ element, position, time: t });
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  timeMarkers.geometry.dispose();
+  timeMarkers.geometry = geometry;
+}
 
 function build(now) {
   anchor = now;
@@ -159,6 +232,7 @@ function build(now) {
   const geo = new LineGeometry();
   geo.setPositions(pos);
   for (const c of curves) { c.geometry.dispose(); c.geometry = geo; }
+  buildTimeMarkers(now);
 }
 
 function spanLabel(h) {
@@ -194,7 +268,9 @@ setView('yz');
 function frame() {
   const now = nowSeconds();
   if (Math.abs(now - anchor) > 0.2 * halfSpan) build(now);
-  for (const c of curves) c.position.x = -((now - anchor) / halfSpan) * X_EXTENT;
+  const curveOffset = -((now - anchor) / halfSpan) * X_EXTENT;
+  for (const c of curves) c.position.x = curveOffset;
+  timeMarkers.position.x = curveOffset;
   const s = signal(now);
   glow.position.set(0, toY(s.y), toZ(s.z));
   core.position.copy(glow.position);
@@ -204,6 +280,21 @@ function frame() {
   timeEl.textContent = new Date(now * 1000).toLocaleTimeString();
   spanEl.textContent = `span ${spanLabel(halfSpan)}`;
   controls.update();
+  cam.updateMatrixWorld();
+  const width = el.clientWidth, height = el.clientHeight;
+  for (const timeMarker of timeMarkerLabels) {
+    timeMarkerProjection.copy(timeMarker.position);
+    timeMarkerProjection.x += curveOffset;
+    timeMarkerProjection.project(cam);
+    const x = (timeMarkerProjection.x * 0.5 + 0.5) * width;
+    const y = (-timeMarkerProjection.y * 0.5 + 0.5) * height;
+    const visible = timeMarkerProjection.z >= -1 && timeMarkerProjection.z <= 1
+      && x >= 0 && x <= width && y >= 0 && y <= height;
+    timeMarker.element.style.visibility = visible ? 'visible' : 'hidden';
+    timeMarker.element.style.opacity = String(Math.max(0, 1 - (timeMarker.time - now) / halfSpan));
+    timeMarker.element.style.left = `${x}px`;
+    timeMarker.element.style.top = `${y}px`;
+  }
   renderer.render(scene, cam);
   requestAnimationFrame(frame);
 }
