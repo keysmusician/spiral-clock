@@ -7,9 +7,16 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 const TAU = 2 * Math.PI;
 const PERIODS = [1, 60, 3600, 86400];
 const AMPLITUDES = [0.005, 0.02, 0.1, 1];
-const waves = PERIODS.map((p, i) => ({ f: TAU / p, amp: AMPLITUDES[i] }));
+const waves = PERIODS.map((period, i) => ({ period, f: TAU / period, amp: AMPLITUDES[i] }));
 const sumWaves = (fn, t) => waves.reduce((s, w) => s + w.amp * fn(w.f * t), 0);
 const signal = (t) => ({ y: sumWaves(Math.sin, t), z: sumWaves(Math.cos, t) });
+const periodCenter = (period, t) => waves.reduce((center, wave) => {
+  if (wave.period > period) {
+    center.y += wave.amp * Math.sin(wave.f * t);
+    center.z += wave.amp * Math.cos(wave.f * t);
+  }
+  return center;
+}, { y: 0, z: 0 });
 
 const MIN_HALF = 0.5;
 const MAX_HALF = 86400 * 4;
@@ -94,8 +101,7 @@ renderer.domElement.addEventListener('pointermove', (event) => {
   const [first, second] = activeTouchPointers.values();
   const distance = Math.hypot(first.x - second.x, first.y - second.y);
   if (lastPinchDistance > 0 && distance > 0 && Math.abs(distance - lastPinchDistance) > 0.1) {
-    halfSpan = Math.min(MAX_HALF, Math.max(MIN_HALF, halfSpan * (lastPinchDistance / distance)));
-    build(nowSeconds(), true);
+    updateHalfSpan(halfSpan * (lastPinchDistance / distance));
   }
   lastPinchDistance = distance;
 });
@@ -211,28 +217,44 @@ const TIME_MARKER_INTERVALS = [
   86400,
 ];
 
+function formatTime(time, includeSeconds = false) {
+  const options = {
+    hour: 'numeric',
+    minute: '2-digit',
+    hourCycle: use24HourTime ? 'h23' : 'h12',
+  };
+  if (includeSeconds) options.second = '2-digit';
+  return new Date(time * 1000).toLocaleTimeString([], options);
+}
+
 function formatTimeMarkerLabel(time, interval) {
-  const date = new Date(time * 1000);
-  const hourCycle = use24HourTime ? 'h23' : 'h12';
-  if (interval < 60) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hourCycle });
+  if (interval >= 86400) {
+    return new Date(time * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
-  if (interval < 86400) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hourCycle });
-  }
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return formatTime(time, interval < 60);
 }
 
 function buildTimeMarkers(now) {
   const desiredInterval = (2 * halfSpan) / 8;
   const interval = TIME_MARKER_INTERVALS.find((step) => step >= desiredInterval)
     ?? TIME_MARKER_INTERVALS[TIME_MARKER_INTERVALS.length - 1];
-  const start = (Math.floor(now / interval) + 1) * interval;
   const end = now + halfSpan;
+  const markerTimes = [];
+  if (interval >= 86400) {
+    const nextMidnight = new Date(now * 1000);
+    nextMidnight.setHours(0, 0, 0, 0);
+    nextMidnight.setDate(nextMidnight.getDate() + 1);
+    for (let t = nextMidnight.getTime() / 1000; t <= end; nextMidnight.setDate(nextMidnight.getDate() + 1), t = nextMidnight.getTime() / 1000) {
+      markerTimes.push(t);
+    }
+  } else {
+    const start = (Math.floor(now / interval) + 1) * interval;
+    for (let t = start; t <= end; t += interval) markerTimes.push(t);
+  }
   const positions = [];
   timeMarkerLabels.length = 0;
   timeMarkerLabelContainer.replaceChildren();
-  for (let t = start; t <= end; t += interval) {
+  for (const t of markerTimes) {
     const p = signal(t);
     const position = new THREE.Vector3(((t - now) / halfSpan) * X_EXTENT, toY(p.y), toZ(p.z));
     positions.push(position.x, position.y, position.z);
@@ -289,6 +311,11 @@ function build(now, refit = false) {
   buildTimeMarkers(now);
 }
 
+function updateHalfSpan(nextHalfSpan) {
+  halfSpan = Math.min(MAX_HALF, Math.max(MIN_HALF, nextHalfSpan));
+  build(nowSeconds(), true);
+}
+
 function spanLabel(h) {
   const s = 2 * h;
   if (s < 120) return `${s.toFixed(1)} s`;
@@ -299,8 +326,7 @@ function spanLabel(h) {
 
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
-  halfSpan = Math.min(MAX_HALF, Math.max(MIN_HALF, halfSpan * Math.exp(e.deltaY * 0.002)));
-  build(nowSeconds(), true);
+  updateHalfSpan(halfSpan * Math.exp(e.deltaY * 0.002));
 }, { passive: false });
 
 document.querySelectorAll('#views button[data-view]').forEach((b) =>
@@ -322,10 +348,6 @@ controlsMenuToggle.addEventListener('click', () => {
 
 document.getElementById('controls-list').addEventListener('click', (event) => {
   if (event.target.closest('button')) closeControlsMenu();
-});
-
-document.addEventListener('click', (event) => {
-  if (!viewsEl.contains(event.target)) closeControlsMenu();
 });
 
 document.addEventListener('keydown', (event) => {
@@ -362,10 +384,13 @@ function frame() {
   glow.position.set(0, toY(s.y), toZ(s.z));
   core.position.copy(glow.position);
   if (isTracking && !isInteracting) {
-    const trackingInterval = 2 * halfSpan < 60 ? 1 : 60;
-    const trackingCenter = Math.floor(now / trackingInterval) * trackingInterval + trackingInterval / 2;
-    const trackingSignal = signal(trackingCenter);
-    cameraFollowTarget.set(0, toY(trackingSignal.y), toZ(trackingSignal.z));
+    const totalSpan = 2 * halfSpan;
+    const trackingPeriod = totalSpan < 60 ? 1
+      : totalSpan < 3600 ? 60
+        : totalSpan < 86400 ? 3600
+          : 86400;
+    const center = periodCenter(trackingPeriod, now);
+    cameraFollowTarget.set(0, toY(center.y), toZ(center.z));
     const followAmount = 1 - Math.exp(-deltaSeconds / 0.8);
     const followDelta = cameraFollowDelta.subVectors(cameraFollowTarget, controls.target);
     if (followDelta.length() < 0.015) centerButton.hidden = true;
@@ -376,12 +401,7 @@ function frame() {
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * TAU * 0.8);
   glow.scale.setScalar(0.07 + 0.04 * pulse);
   glow.material.opacity = 0.7 + 0.3 * pulse;
-  timeEl.textContent = new Date(now * 1000).toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: use24HourTime ? 'h23' : 'h12',
-  });
+  timeEl.textContent = formatTime(now, true);
   spanEl.textContent = `span ${spanLabel(halfSpan)}`;
   controls.update();
   cam.updateMatrixWorld();
@@ -427,16 +447,6 @@ const closeGestureOverlay = () => {
   gestureHelpButton.setAttribute('aria-expanded', 'false');
 };
 
-document.addEventListener('click', (event) => {
-  if (
-    gestureOverlayEl.classList.contains('manual-open') &&
-    !gestureHintEl.contains(event.target) &&
-    event.target !== gestureHelpButton
-  ) {
-    closeGestureOverlay();
-  }
-});
-
 gestureHelpButton.addEventListener('click', () => {
   if (gestureOverlayEl.classList.contains('manual-open')) {
     closeGestureOverlay();
@@ -473,6 +483,16 @@ settingsButton.addEventListener('click', () => {
 });
 
 document.addEventListener('click', (event) => {
+  if (!viewsEl.contains(event.target)) closeControlsMenu();
+
+  if (
+    gestureOverlayEl.classList.contains('manual-open') &&
+    !gestureHintEl.contains(event.target) &&
+    !gestureHelpButton.contains(event.target)
+  ) {
+    closeGestureOverlay();
+  }
+
   if (
     !settingsOverlayEl.hidden &&
     !settingsPanelEl.contains(event.target) &&
