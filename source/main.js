@@ -18,7 +18,7 @@ const MIN_SAMPLES = 1501;
 const MAX_SAMPLES = 500001;
 const LINE_WIDTH = 0.5; // px, present side
 const PAST_WIDTH_SCALE = 0.5;
-let halfSpan = 60; // 2 minutes total
+let halfSpan = 210; // 7 minutes total
 let use24HourTime = false;
 
 const nowSeconds = () => Date.now() / 1000;
@@ -39,6 +39,7 @@ const VIEWS = {
   xz: [0, -2, 0],
   xy: [0, -0.01, 2],
 };
+const DEFAULT_VIEW_DIRECTION = new THREE.Vector3(-0.62, -0.62, 0.48).normalize();
 let activeView = null;
 let yzRadius = 0.5; // largest distance of the now-point from the axis, in world units
 // Back the yz camera off just enough that the now-point stays in frame (limited by the narrower fov axis).
@@ -49,7 +50,8 @@ const yzDistance = () => {
 const setView = (name) => {
   activeView = name;
   const p = VIEWS[name];
-  if (name === 'yz') cam.position.set(-yzDistance(), 0, 0);
+  if (name === 'default') cam.position.copy(DEFAULT_VIEW_DIRECTION).multiplyScalar(yzDistance() * 1.5);
+  else if (name === 'yz') cam.position.set(-yzDistance(), 0, 0);
   else cam.position.set(...p);
   controls.target.set(0, 0, 0);
   controls.update();
@@ -262,12 +264,12 @@ function resize() {
   for (const m of curveMats) m.resolution.set(w, h);
   cam.aspect = w / h;
   cam.updateProjectionMatrix();
-  if (activeView === 'yz') setView('yz');
+  if (activeView === 'yz' || activeView === 'default') setView(activeView);
 }
 addEventListener('resize', resize);
 resize();
 build(nowSeconds(), true);
-setView('yz');
+setView('default');
 
 function frame() {
   const now = nowSeconds();
