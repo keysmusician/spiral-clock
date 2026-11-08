@@ -19,6 +19,7 @@ const MAX_SAMPLES = 500001;
 const LINE_WIDTH = 0.5; // px, present side
 const PAST_WIDTH_SCALE = 0.5;
 let halfSpan = 60; // 2 minutes total
+let use24HourTime = false;
 
 const nowSeconds = () => Date.now() / 1000;
 const el = document.getElementById('plot');
@@ -162,11 +163,12 @@ const TIME_MARKER_INTERVALS = [
 
 function formatTimeMarkerLabel(time, interval) {
   const date = new Date(time * 1000);
+  const hourCycle = use24HourTime ? 'h23' : 'h12';
   if (interval < 60) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hourCycle });
   }
   if (interval < 86400) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hourCycle });
   }
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
@@ -196,22 +198,24 @@ function buildTimeMarkers(now) {
   timeMarkers.geometry = geometry;
 }
 
-function build(now) {
+function build(now, refit = false) {
   anchor = now;
-  // Coarse pass fits y/z to the visible window.
-  let y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-  const COARSE = 4001;
-  for (let i = 0; i < COARSE; i++) {
-    const s = signal(now - halfSpan + (2 * halfSpan * i) / (COARSE - 1));
-    y0 = Math.min(y0, s.y); y1 = Math.max(y1, s.y);
-    z0 = Math.min(z0, s.z); z1 = Math.max(z1, s.z);
-  }
-  yzCenter = [(y0 + y1) / 2, (z0 + z1) / 2];
-  yzScale = 0.5 / (Math.max(y1 - y0, z1 - z0) / 2 * 1.08);
-  yzRadius = 0;
-  for (let i = 0; i < COARSE; i += 1) {
-    const s = signal(now - halfSpan + (2 * halfSpan * i) / (COARSE - 1));
-    yzRadius = Math.max(yzRadius, Math.hypot(toY(s.y), toZ(s.z)));
+  if (refit) {
+    // Keep auto-fit stable during rolling geometry updates; only refit when the span changes.
+    let y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    const COARSE = 4001;
+    for (let i = 0; i < COARSE; i++) {
+      const s = signal(now - halfSpan + (2 * halfSpan * i) / (COARSE - 1));
+      y0 = Math.min(y0, s.y); y1 = Math.max(y1, s.y);
+      z0 = Math.min(z0, s.z); z1 = Math.max(z1, s.z);
+    }
+    yzCenter = [(y0 + y1) / 2, (z0 + z1) / 2];
+    yzScale = 0.5 / (Math.max(y1 - y0, z1 - z0) / 2 * 1.08);
+    yzRadius = 0;
+    for (let i = 0; i < COARSE; i += 1) {
+      const s = signal(now - halfSpan + (2 * halfSpan * i) / (COARSE - 1));
+      yzRadius = Math.max(yzRadius, Math.hypot(toY(s.y), toZ(s.z)));
+    }
   }
   // Sample densely enough for the fastest wave that is still at least a pixel wide.
   const px = yzScale * el.clientHeight;
@@ -246,7 +250,7 @@ function spanLabel(h) {
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
   halfSpan = Math.min(MAX_HALF, Math.max(MIN_HALF, halfSpan * Math.exp(e.deltaY * 0.002)));
-  build(nowSeconds());
+  build(nowSeconds(), true);
 }, { passive: false });
 
 document.querySelectorAll('#views button[data-view]').forEach((b) =>
@@ -262,7 +266,7 @@ function resize() {
 }
 addEventListener('resize', resize);
 resize();
-build(nowSeconds());
+build(nowSeconds(), true);
 setView('yz');
 
 function frame() {
@@ -277,7 +281,12 @@ function frame() {
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * TAU * 0.8);
   glow.scale.setScalar(0.07 + 0.04 * pulse);
   glow.material.opacity = 0.7 + 0.3 * pulse;
-  timeEl.textContent = new Date(now * 1000).toLocaleTimeString();
+  timeEl.textContent = new Date(now * 1000).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: use24HourTime ? 'h23' : 'h12',
+  });
   spanEl.textContent = `span ${spanLabel(halfSpan)}`;
   controls.update();
   cam.updateMatrixWorld();
@@ -343,6 +352,7 @@ const settingsButton = document.getElementById('settings-button');
 const settingsOverlayEl = document.getElementById('settings-overlay');
 const settingsPanelEl = document.getElementById('settings-panel');
 const timeMarkersToggle = document.getElementById('time-markers-toggle');
+const timeFormatToggle = document.getElementById('time-format-toggle');
 const lineColorInput = document.getElementById('line-color');
 
 const closeSettings = () => {
@@ -372,6 +382,11 @@ document.addEventListener('click', (event) => {
 timeMarkersToggle.addEventListener('change', () => {
   timeMarkers.visible = timeMarkersToggle.checked;
   timeMarkerLabelContainer.hidden = !timeMarkersToggle.checked;
+});
+
+timeFormatToggle.addEventListener('change', () => {
+  use24HourTime = timeFormatToggle.checked;
+  buildTimeMarkers(nowSeconds());
 });
 
 lineColorInput.addEventListener('input', () => {

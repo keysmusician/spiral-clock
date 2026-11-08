@@ -135,7 +135,7 @@
       border-bottom: 0;
     }
 
-    #time-markers-toggle {
+    .setting-switch {
       appearance: none;
       -webkit-appearance: none;
       position: relative;
@@ -150,7 +150,7 @@
       transition: background 150ms ease, border-color 150ms ease;
     }
 
-    #time-markers-toggle::before {
+    .setting-switch::before {
       position: absolute;
       top: 2px;
       left: 2px;
@@ -162,17 +162,17 @@
       transition: transform 150ms ease, background 150ms ease;
     }
 
-    #time-markers-toggle:checked {
+    .setting-switch:checked {
       border-color: #4aa8ff;
       background: #245c91;
     }
 
-    #time-markers-toggle:checked::before {
+    .setting-switch:checked::before {
       transform: translateX(18px);
       background: #fff;
     }
 
-    #time-markers-toggle:focus-visible {
+    .setting-switch:focus-visible {
       outline: 2px solid #8fc5ff;
       outline-offset: 2px;
     }
@@ -309,7 +309,8 @@
       }
 
       #time-markers-toggle,
-      #time-markers-toggle::before {
+      #time-format-toggle,
+      .setting-switch::before {
         transition-duration: 0s;
       }
 
@@ -318,7 +319,7 @@
       }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-DI-dNB_K.js"></script>
+  <script type="module" crossorigin src="./assets/index-Ba9tR-7j.js"></script>
 </head>
 
 <body>
@@ -362,7 +363,11 @@
       <h2 id="settings-title">Settings</h2>
       <label class="setting-row" for="time-markers-toggle">
         <span>Time markers</span>
-        <input id="time-markers-toggle" type="checkbox" checked>
+        <input id="time-markers-toggle" class="setting-switch" type="checkbox" checked>
+      </label>
+      <label class="setting-row" for="time-format-toggle">
+        <span>24-hour time</span>
+        <input id="time-format-toggle" class="setting-switch" type="checkbox">
       </label>
       <label class="setting-row" for="line-color">
         <span>Line color</span>
